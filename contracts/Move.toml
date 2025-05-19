@@ -1,12 +1,12 @@
 [package]
-name = "agger-contracts"
+name = "zkmove-contracts"
 version = "1.0.0"
 authors = []
 
 [addresses]
-agger = "_"
+zkmove = "_"
 [dev-addresses]
-agger = "0xb3a402b1d4c7797b3cb5c8ea77e4a2ca5fd7fb9b8def568d4339a50fc387aa59"
+zkmove = "0xb3a402b1d4c7797b3cb5c8ea77e4a2ca5fd7fb9b8def568d4339a50fc387aa59"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
