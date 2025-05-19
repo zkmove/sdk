@@ -1,4 +1,4 @@
-module agger::registry {
+module zkmove::vk_registry {
     use std::string;
     use std::vector;
     use aptos_std::table;
@@ -19,8 +19,8 @@ module agger::registry {
     struct VerificationParameters has copy, drop, store {
         /// circuit config in bcs
         config: vector<u8>,
-        /// kzg param
-        param: vector<u8>,
+        /// k in param
+        k: u32,
         /// verify key
         vk: vector<u8>,
 
@@ -36,7 +36,7 @@ module agger::registry {
     }
 
     fun init_module(account: &signer) {
-        assert!(address_of(account) == @agger, 401);
+        assert!(address_of(account) == @zkmove, 401);
         move_to(account, Modules { modules: table::new() });
         move_to(account, Registry {
             verify_keys: table::new(),
@@ -48,7 +48,7 @@ module agger::registry {
     public fun get_module(addr: vector<u8>, name: vector<u8>): vector<u8>
     acquires Modules {
         let id = ModuleId { addr, name: string::utf8(name) };
-        let ms = borrow_global<Modules>(@agger);
+        let ms = borrow_global<Modules>(@zkmove);
         *table::borrow(&ms.modules, id)
     }
 
@@ -56,38 +56,37 @@ module agger::registry {
     public fun get_vk(addr: vector<u8>, name: vector<u8>, function_index: u16): vector<u8>
     acquires Registry {
         let id = ModuleId { addr, name: string::utf8(name) };
-        let registry = borrow_global<Registry>(@agger);
+        let registry = borrow_global<Registry>(@zkmove);
         let mkeys = table::borrow(&registry.verify_keys, id);
         table::borrow(mkeys, function_index).vk
     }
 
     #[view]
-    public fun get_param(addr: vector<u8>, name: vector<u8>, function_index: u16): vector<u8>
+    public fun get_k(addr: vector<u8>, name: vector<u8>, function_index: u16): u32
     acquires Registry {
         let id = ModuleId { addr, name: string::utf8(name) };
-        let registry = borrow_global<Registry>(@agger);
+        let registry = borrow_global<Registry>(@zkmove);
         let mkeys = table::borrow(&registry.verify_keys, id);
-        table::borrow(mkeys, function_index).param
+        table::borrow(mkeys, function_index).k
     }
 
     #[view]
     public fun get_config(addr: vector<u8>, name: vector<u8>, function_index: u16): vector<u8>
     acquires Registry {
         let id = ModuleId { addr, name: string::utf8(name) };
-        let registry = borrow_global<Registry>(@agger);
+        let registry = borrow_global<Registry>(@zkmove);
         let mkeys = table::borrow(&registry.verify_keys, id);
         table::borrow(mkeys, function_index).config
     }
 
     /// verify_key is composed with vk+function_index+circuit_configs
-    /// TODO: add circuit configuration.
     public entry fun register_module(
         addr: vector<u8>,
         name: vector<u8>,
         code: vector<u8>,
         configs: vector<vector<u8>>,
         func_verify_keys: vector<vector<u8>>,
-        params: vector<vector<u8>>,
+        ks: vector<u32>,
     )
     acquires Modules, Registry {
         let module_id = ModuleId { addr, name: string::utf8(name) };
@@ -100,7 +99,7 @@ module agger::registry {
     // todo: parse module id from bytecode ?
     public fun add_module(module_id: ModuleId, code: vector<u8>)
     acquires Modules {
-        let modules = borrow_global_mut<Modules>(@agger);
+        let modules = borrow_global_mut<Modules>(@zkmove);
         table::add(&mut modules.modules, module_id, code);
     }
 
@@ -108,23 +107,25 @@ module agger::registry {
         module_id: ModuleId,
         configs: vector<vector<u8>>,
         verify_keys: vector<vector<u8>>,
-        params: vector<vector<u8>>
-    )
-    acquires Registry {
-        let registry = borrow_global_mut<Registry>(@agger);
-        let i = vector::length(&verify_keys);
-        while (i > 0) {
-            i = i - 1;
-            let config = vector::pop_back(&mut configs);
-            let vk = vector::pop_back(&mut verify_keys);
-            let param = vector::pop_back(&mut params);
+        ks: vector<u32>
+    ) acquires Registry {
+        let registry = borrow_global_mut<Registry>(@zkmove);
+        let len = vector::length(&verify_keys);
+        let i = 0;
 
-            // le encoding of function_index
-            let hi = vector::pop_back(&mut vk);
-            let lo = vector::pop_back(&mut vk);
+        while (i < len) {
+            let config = *vector::borrow(&configs, i);
+            let vk = *vector::borrow(&verify_keys, i);
+            let k = *vector::borrow(&ks, i);
+
+            let hi = *vector::borrow(&vk, vector::length(&vk) - 1);
+            let lo = *vector::borrow(&vk, vector::length(&vk) - 2);
             let func_index = (lo as u16) + ((hi as u16) << 8);
-            add_entry_function_verify_key(&mut registry.verify_keys, module_id, func_index, config, vk, param);
+
+            add_entry_function_verify_key(&mut registry.verify_keys, module_id, func_index, config, vk, k);
+            i = i + 1;
         };
+
         event::emit_event(&mut registry.event_handle, ModuleRegisterEvent { module_id });
     }
 
@@ -134,14 +135,14 @@ module agger::registry {
         function_index: u16,
         config: vector<u8>,
         vk: vector<u8>,
-        param: vector<u8>,
+        k: u32,
     ) {
         if (table::contains(verify_keys, module_id)) {
             let t = table::borrow_mut(verify_keys, module_id);
-            table::add(t, function_index, VerificationParameters { config, vk, param });
+            table::add(t, function_index, VerificationParameters { config, vk, k });
         } else {
             let t = table::new();
-            table::add(&mut t, function_index, VerificationParameters { config, vk, param });
+            table::add(&mut t, function_index, VerificationParameters { config, vk, k });
             table::add(verify_keys, module_id, t);
         }
     }
