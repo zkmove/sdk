@@ -1,4 +1,4 @@
-Combine various components of zkMove together.
+Bringing together the components of zkMove to form a ZK Privacy SDK for the Move community.
 
 **zkMove Client**
 
