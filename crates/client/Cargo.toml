@@ -4,24 +4,19 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
-#
-#aptos-move-witnesses = { path = "../aptos-move-witnesses" }
 halo2_proofs.workspace = true
 move-package = { workspace = true }
 move-core-types = { workspace = true }
 vm-circuit = { workspace = true }
-#
 ark-bn254 = { version = "0.4.0" }
 ark-serialize = { version = "0.4" }
 ark-ec = { version = "0.4" }
 anyhow = "1.0.38"
 log.workspace = true
-#rand = "0.8"
 serde_json = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 hex = "0.4"
-#shape-generator = { git = "https://github.com/zkmove/halo2-verifier.move", package = "shape-generator" }
 [dev-dependencies]
 
 [[bin]]
