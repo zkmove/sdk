@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/client",
+    "crates/common/logger",
 #    "crates/prover/types",
 #    "crates/prover/contract-types",
 #    "crates/prover/node",

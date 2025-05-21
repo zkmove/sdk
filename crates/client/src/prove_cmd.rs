@@ -2,9 +2,9 @@ use anyhow::Result;
 use clap::Parser;
 use halo2_proofs::{
     halo2curves::bn256::{Bn256, Fr},
-    poly::kzg::commitment::ParamsKZG,
+    poly::{commitment::Params, kzg::commitment::ParamsKZG},
 };
-use log::debug;
+use logger::*;
 use move_package::{
     compilation::{compiled_package::OnDiskCompiledPackage, package_layout::CompiledPackageLayout},
     source_package::layout::SourcePackageLayout,
@@ -75,8 +75,13 @@ impl ProveCommand {
         let k = best_k(&circuit);
         debug!("k = {}", k);
 
+        let mut params = params.clone();
+        if k < params.k() {
+            params.downsize(k);
+        }
+
         debug!("Setup pk/vk");
-        let (vk, pk) = setup_circuit(&circuit, params)?;
+        let (vk, pk) = setup_circuit(&circuit, &params)?;
         if self.debug {
             print_cs_info(vk.cs());
         }
@@ -93,9 +98,9 @@ impl ProveCommand {
         }
         #[cfg(not(feature = "test-circuits"))]
         {
-            let proof = prove_circuit(circuit, &instances.as_ref(), params, &pk)
+            let proof = prove_circuit(circuit, &instances.as_ref(), &params, &pk)
                 .expect("proof generation should not fail");
-            verify_circuit(&instances.as_ref(), params, &vk, &proof)
+            verify_circuit(&instances.as_ref(), &params, &vk, &proof)
                 .expect("verify proof should be ok");
 
             let proof_output_dir = self

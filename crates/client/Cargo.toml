@@ -12,11 +12,12 @@ ark-bn254 = { version = "0.4.0" }
 ark-serialize = { version = "0.4" }
 ark-ec = { version = "0.4" }
 anyhow = "1.0.38"
-log.workspace = true
 serde_json = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 hex = "0.4"
+logger = { path = "../common/logger" }
+
 [dev-dependencies]
 
 [[bin]]

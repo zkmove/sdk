@@ -12,6 +12,7 @@ Build and publish the example. Then generate the witness while executing the exa
 generated in a directory called `witnesses`.
 
 ```shell
+# Run below commands in crates/client/example/
 move build
 move sandbox publish --skip-fetch-latest-git-deps --ignore-breaking-changes
 move sandbox run --skip-fetch-latest-git-deps --witness storage/0x0000000000000000000000000000000000000000000000000000000000000001/modules/fibonacci.mv test_fibonacci --args 10u64
@@ -21,15 +22,6 @@ Finally, execute the “zkmove run” command, which will run the full sequence 
 successful execution, it will also report the proof size, proving time, and verification time.
 
 ```shell
-# Don't forget to replace the witness filename with your own.
-zkmove run -p example -w witnesses/test_fibonacci-1733485309514.json
+# Generate proof. Run under crates/client/, don't forget to replace the witness filename with your own.
+cargo run --release -- --param-path params/kzg_bn254_12.srs prove -w example/witnesses/test_fibonacci-1747793629098.json
 ```
-
-
-### build publish-circuit aptos txn
-
-```shell
-cargo run -- --param-path challenge_0078-kzg_bn254_16.srs -k 12 aptos --verifier-address a9f85ec000d6b7e78aa006f0fe0fcb3f8b82b71262283b84f2434441318064e1 --package_dir example/ build-publish-vk-aptos-txn --entry_module 0x1::fibonacci --function_name test_fibonacci --max_rows 2048
-```
-
-### build verify-proof aptos txn
