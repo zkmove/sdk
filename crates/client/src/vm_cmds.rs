@@ -16,11 +16,9 @@ use move_package::{
 };
 use std::path::{Path, PathBuf};
 use toml::Value;
-#[cfg(feature = "test-circuits")]
-use vm_circuit::mock_prove_circuit;
 use vm_circuit::{
-    best_k, prove_circuit, setup_circuit, verify_circuit, CircuitConfigV2,
-    Footprints, InstanceFields, SubCircuit, VmCircuit, NUM_INSTANCE_COLUMNS,
+    best_k, prove_circuit, setup_circuit, verify_circuit, CircuitConfigV2, Footprints,
+    InstanceFields, SubCircuit, VmCircuit, NUM_INSTANCE_COLUMNS,
 };
 
 #[derive(Parser)]
@@ -91,13 +89,7 @@ impl ProveCommand {
 
         let args = traces.args().expect("Args not found");
         let instances = InstanceFields::<_, NUM_INSTANCE_COLUMNS>::new(&args, &self.pubs_indices);
-
-        #[cfg(feature = "test-circuits")]
-        mock_prove_circuit(&circuit, instances.0, k)?;
-
-        #[cfg(not(feature = "test-circuits"))]
         self.generate_and_save_proof(circuit, &instances, &params, &rooted_path)?;
-
         Ok(())
     }
 
@@ -157,7 +149,6 @@ impl ProveCommand {
         Ok(())
     }
 
-    #[cfg(not(feature = "test-circuits"))]
     fn generate_and_save_proof(
         &self,
         circuit: VmCircuit<Fr>,

@@ -1,7 +1,5 @@
 ## CLI for zkMove Virtual Machine
 
-### generate proof for the example
-
 Before start, make sure you have a customized version of the Move CLI installed:
 
 ```shell
@@ -22,8 +20,13 @@ Finally, execute the “zkmove run” command, which will run the full sequence 
 successful execution, it will also report the proof size, proving time, and verification time.
 
 ```shell
-# Generate proof. Run under crates/client/, don't forget to replace the witness filename with your own.
+# Generate proof in the client-side. Run under crates/client/, don't forget to replace the witness filename with your own.
 cargo run --release --  --param-path params/kzg_bn254_12.srs vm prove -w example/witnesses/test_fibonacci-1747793629098.json
-# Verify the proof.
+# As a debug tool, user can verify the proof in the client-side.
 cargo run --release --  --param-path params/kzg_bn254_12.srs vm verify -k 11 --pubs-path example/proofs/test_fibonacci-1747793629098.instance --proof-path example/proofs/test_fibonacci-1747793629098.proof --vk-path example/proofs/test_fibonacci-1747793629098.vk
+```
+
+To publish the circuit to Aptos, you can use the following command.
+```shell
+cargo run --release --  --param-path params/kzg_bn254_12.srs aptos --zkmove-address a9f85ec000d6b7e78aa006f0fe0fcb3f8b82b71262283b84f2434441318064e1 -p ./example build-publish-circuit-aptos-txn -w example/witnesses/test_fibonacci-1747793629098.json
 ```

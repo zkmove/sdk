@@ -3,5 +3,4 @@
 // Copyright (c) zkMove Authors
 pub mod aptos_cmds;
 pub mod aptos_utils;
-pub mod constants;
 pub mod vm_cmds;
