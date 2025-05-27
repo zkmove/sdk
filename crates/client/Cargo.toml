@@ -17,6 +17,7 @@ clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 hex = "0.4"
 logger = { path = "../common/logger" }
+toml = { workspace = true }
 
 [dev-dependencies]
 

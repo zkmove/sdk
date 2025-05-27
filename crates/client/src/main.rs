@@ -4,7 +4,7 @@ use halo2_proofs::{
     poly::{commitment::Params, kzg::commitment::ParamsKZG},
 };
 use std::path::PathBuf;
-use zkmove_cli::{aptos_cmds::AptosCommands, prove_cmd::ProveCommand};
+use zkmove_cli::{aptos_cmds::AptosCommands, vm_cmds::VmCommands};
 
 #[derive(Parser)]
 #[command(name = "zkmove", about = "CLI for zkMove")]
@@ -17,7 +17,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    Prove(ProveCommand),
+    Vm(VmCommands),
     Aptos(AptosCommands),
 }
 
@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
     let params = ParamsKZG::<Bn256>::read(&mut param_file)?;
 
     match args.command {
-        Commands::Prove(prove_command) => prove_command.run(&params),
+        Commands::Vm(vm_command) => vm_command.run(&params),
         Commands::Aptos(aptos_command) => aptos_command.run(&params),
     }
 }

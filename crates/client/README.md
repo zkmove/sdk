@@ -23,5 +23,7 @@ successful execution, it will also report the proof size, proving time, and veri
 
 ```shell
 # Generate proof. Run under crates/client/, don't forget to replace the witness filename with your own.
-cargo run --release -- --param-path params/kzg_bn254_12.srs prove -w example/witnesses/test_fibonacci-1747793629098.json
+cargo run --release --  --param-path params/kzg_bn254_12.srs vm prove -w example/witnesses/test_fibonacci-1747793629098.json
+# Verify the proof.
+cargo run --release --  --param-path params/kzg_bn254_12.srs vm verify -k 11 --pubs-path example/proofs/test_fibonacci-1747793629098.instance --proof-path example/proofs/test_fibonacci-1747793629098.proof --vk-path example/proofs/test_fibonacci-1747793629098.vk
 ```
