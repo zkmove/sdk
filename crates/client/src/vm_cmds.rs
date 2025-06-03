@@ -14,11 +14,14 @@ use move_package::{
     },
     source_package::layout::SourcePackageLayout,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 use toml::Value;
 use vm_circuit::{
-    best_k, prove_circuit, setup_circuit, verify_circuit, CircuitConfigV2, Footprints,
-    InstanceFields, SubCircuit, VmCircuit, NUM_INSTANCE_COLUMNS,
+    best_k, circuit_v2::CircuitGuard, prove_circuit, setup_circuit, verify_circuit,
+    CircuitConfigV2, Footprints, InstanceFields, SubCircuit, VmCircuit, NUM_INSTANCE_COLUMNS,
 };
 
 #[derive(Parser)]
@@ -77,7 +80,13 @@ impl ProveCommand {
 
         let circuit_config =
             Self::get_circuit_config_from_move_toml(&rooted_path.join("Move.toml"));
-        let circuit = VmCircuit::<Fr>::new(&package, &traces, &self.pubs_indices, circuit_config);
+        let circuit = Rc::new(VmCircuit::<Fr>::new(
+            &package,
+            &traces,
+            &self.pubs_indices,
+            circuit_config,
+        ));
+        let _circuit_guard = CircuitGuard::new(circuit.clone());
 
         let k = best_k(&circuit);
         debug!("Optimal k = {}", k);
@@ -151,16 +160,16 @@ impl ProveCommand {
 
     fn generate_and_save_proof(
         &self,
-        circuit: VmCircuit<Fr>,
+        circuit: Rc<VmCircuit<Fr>>,
         instances: &InstanceFields<Fr, NUM_INSTANCE_COLUMNS>,
         params: &ParamsKZG<Bn256>,
         rooted_path: &Path,
     ) -> Result<()> {
         debug!("Get proving and verifying keys");
-        let (vk, pk) = setup_circuit(&circuit, params)?;
+        let (vk, pk) = setup_circuit(&*circuit, params)?;
 
         debug!("Generating zk proof");
-        let proof = prove_circuit(circuit, &instances.as_ref(), params, &pk)
+        let proof = prove_circuit((*circuit).clone(), &instances.as_ref(), params, &pk)
             .context("Proof generation failed")?;
 
         let output_dir = self

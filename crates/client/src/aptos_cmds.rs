@@ -18,9 +18,12 @@ use shape_generator::{generate_circuit_info, serialize};
 use std::{
     env::current_dir,
     path::{Path, PathBuf},
+    rc::Rc,
 };
 use toml::Value;
-use vm_circuit::{best_k, CircuitConfigV2, Footprints, SubCircuit, VmCircuit};
+use vm_circuit::{
+    best_k, circuit_v2::CircuitGuard, CircuitConfigV2, Footprints, SubCircuit, VmCircuit,
+};
 
 /// the consts correspond to the definition of vk_registry.move
 pub const VK_REGISTRY_MODULE: &str = "vk_registry";
@@ -149,7 +152,13 @@ impl BuildPublishCircuitAptosTxn {
         debug!("Loading witness from {:?}", self.witness.display());
         let traces = Footprints::load(&self.witness)
             .with_context(|| format!("Failed to load witness from {:?}", self.witness))?;
-        let circuit = VmCircuit::<Fr>::new(&package, &traces, &self.pubs_indices, circuit_config);
+        let circuit = Rc::new(VmCircuit::<Fr>::new(
+            package,
+            &traces,
+            &self.pubs_indices,
+            circuit_config,
+        ));
+        let _circuit_guard = CircuitGuard::new(circuit.clone());
 
         let k = best_k(&circuit);
         debug!("k = {}", k);
@@ -178,10 +187,10 @@ impl BuildPublishCircuitAptosTxn {
     fn build_txn(
         &self,
         zkmove_address: &str,
-        circuit: VmCircuit<Fr>,
+        circuit: Rc<VmCircuit<Fr>>,
         params: &ParamsKZG<Bn256>,
     ) -> Result<()> {
-        let circuit_info = generate_circuit_info(params, &circuit)?;
+        let circuit_info = generate_circuit_info(params, &*circuit)?;
         let data = serialize::serialize(circuit_info.into())?;
         let args: Vec<_> = data
             .into_iter()
