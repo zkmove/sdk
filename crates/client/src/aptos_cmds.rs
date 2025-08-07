@@ -14,7 +14,7 @@ use move_package::{
     source_package::layout::SourcePackageLayout,
 };
 use serde_json::json;
-use shape_generator::{generate_circuit_info, serialize};
+use shape_generator::generate_circuit_info;
 use std::{
     env::current_dir,
     path::{Path, PathBuf},
@@ -22,7 +22,8 @@ use std::{
 };
 use toml::Value;
 use vm_circuit::{
-    best_k, circuit_v2::CircuitGuard, CircuitConfigV2, Footprints, SubCircuit, VmCircuit,
+    best_k, circuit_v2::CircuitGuard, CircuitConfigV2, Footprints, InstanceFields, SubCircuit,
+    VmCircuit, NUM_INSTANCE_COLUMNS,
 };
 
 /// the consts correspond to the definition of vk_registry.move
@@ -102,7 +103,16 @@ impl AptosCommands {
                 .and_then(|max_rows| max_rows.as_integer())
                 .map(|v| v as usize);
 
-            CircuitConfigV2 { max_rows }
+            let max_poseidon_rows = circuit
+                .get("max_poseidon_rows")
+                .and_then(|max_poseidon_rows| max_poseidon_rows.as_integer())
+                .map(|v| v as usize)
+                .unwrap_or(0);
+
+            CircuitConfigV2 {
+                max_rows,
+                max_poseidon_rows,
+            }
         } else {
             CircuitConfigV2::default()
         }
@@ -191,7 +201,7 @@ impl BuildPublishCircuitAptosTxn {
         params: &ParamsKZG<Bn256>,
     ) -> Result<()> {
         let circuit_info = generate_circuit_info(params, &*circuit)?;
-        let data = serialize::serialize(circuit_info.into())?;
+        let data = circuit_info.serialize()?;
         let args: Vec<_> = data
             .into_iter()
             .map(|arg| ArgWithTypeJSON {
@@ -239,6 +249,20 @@ pub enum KZGVariant {
     GWC,
     SHPLONK,
 }
+#[derive(Copy, Clone, Debug)]
+pub enum KZG {
+    GWC,
+    SHPLONK,
+}
+
+impl KZG {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            Self::SHPLONK => 0,
+            Self::GWC => 1,
+        }
+    }
+}
 
 #[derive(Parser)]
 struct BuildVerifyProofTxn {
@@ -246,7 +270,9 @@ struct BuildVerifyProofTxn {
     onchain_verifier_module: String,
     #[arg(long, default_value = VERIFY)]
     onchain_verify_func: String,
-    #[arg(long = "proof", short = 'p', value_parser = value_parser!(PathBuf))]
+    #[arg(long = "pubs-path", value_parser = value_parser!(PathBuf))]
+    pubs_path: PathBuf,
+    #[arg(long = "proof-path", short = 'p', value_parser = value_parser!(PathBuf))]
     proof_path: PathBuf,
     #[arg(long = "output", short = 'o', value_parser = value_parser!(PathBuf))]
     output_dir: Option<PathBuf>,
@@ -258,8 +284,86 @@ struct BuildVerifyProofTxn {
     variant: KZGVariant,
 }
 impl BuildVerifyProofTxn {
-    pub fn run(&self, _zkmove_address: &str) -> Result<()> {
-        // TODO
+    pub fn run(&self, zkmove_address: &str) -> Result<()> {
+        let kzg = match self.variant {
+            KZGVariant::GWC => KZG::GWC,
+            KZGVariant::SHPLONK => KZG::SHPLONK,
+        };
+        let proof = std::fs::read(&self.proof_path)
+            .with_context(|| format!("Failed to read proof from {:?}", self.proof_path))?;
+        let pubs = std::fs::read(&self.pubs_path)
+            .with_context(|| format!("Failed to read pubs from {:?}", self.pubs_path))?;
+        let instances = InstanceFields::<Fr, NUM_INSTANCE_COLUMNS>::from_bytes(&pubs);
+        let json = EntryFunctionArgumentsJSON {
+            function_id: format!(
+                "{}::{}::{}",
+                zkmove_address, self.onchain_verifier_module, self.onchain_verify_func
+            ),
+            type_args: vec![],
+            args: vec![
+                ArgWithTypeJSON {
+                    arg_type: "address".to_string(),
+                    value: json!(self.param_address),
+                },
+                ArgWithTypeJSON {
+                    arg_type: "address".to_string(),
+                    value: json!(self.circuit_address),
+                },
+                ArgWithTypeJSON {
+                    arg_type: "hex".to_string(),
+                    value: json!(instances
+                        .0
+                        .into_iter()
+                        .map(|is| is
+                            .iter()
+                            .map(|fr| fr.to_bytes().to_vec())
+                            .map(|d| HexEncodedBytes(d).to_string())
+                            .collect::<Vec<_>>())
+                        .collect::<Vec<_>>()),
+                },
+                ArgWithTypeJSON {
+                    arg_type: "hex".to_string(),
+                    value: json!(HexEncodedBytes(proof.clone()).to_string()),
+                },
+                ArgWithTypeJSON {
+                    arg_type: "u8".to_string(),
+                    value: json!(kzg.to_u8()),
+                },
+            ],
+        };
+
+        let output = serde_json::to_string_pretty(&json)?;
+        let output_dir = self
+            .output_dir
+            .clone()
+            .unwrap_or_else(|| current_dir().unwrap());
+        std::fs::create_dir_all(&output_dir)
+            .with_context(|| format!("Failed to create output directory at {:?}", output_dir))?;
+
+        let file_stem = self
+            .proof_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid proof file name"))?;
+
+        self.save_to_file(
+            &output_dir,
+            &format!("{}-verify-proof.txn", file_stem),
+            &output,
+        )?;
+        Ok(())
+    }
+
+    fn save_to_file<P: AsRef<Path>, D: AsRef<[u8]>>(
+        &self,
+        dir: P,
+        file_name: &str,
+        data: D,
+    ) -> Result<()> {
+        let file_path = dir.as_ref().join(file_name);
+        std::fs::write(&file_path, data)
+            .with_context(|| format!("Failed to save file to {:?}", file_path))?;
+        debug!("File saved to {:?}", file_path.display());
         Ok(())
     }
 }
