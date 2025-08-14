@@ -1,3 +1,4 @@
+use crate::aptos_cmds::KZGVariant;
 use anyhow::{Context, Result};
 use clap::{value_parser, Parser, Subcommand};
 use halo2_proofs::{
@@ -26,7 +27,7 @@ use toml::Value;
 use vm_circuit::{
     best_k, circuit_v2::CircuitGuard, prove_circuit, setup_circuit, verify_circuit,
     CircuitConfigV2, EntryInfo, Footprints, InstanceFields, ModuleIdMapping, SubCircuit, VmCircuit,
-    NUM_INSTANCE_COLUMNS,
+    KZG, NUM_INSTANCE_COLUMNS,
 };
 
 #[derive(Parser)]
@@ -70,6 +71,8 @@ pub struct ProveCommand {
         num_args = 0..,
     )]
     pubs_indices: Vec<usize>,
+    #[arg(long = "kzg", value_enum, default_value_t = KZGVariant::GWC)]
+    variant: KZGVariant,
     #[arg(short = 'o', long = "output-dir", help = "directory to save the proof")]
     output_dir: Option<PathBuf>,
     #[arg(short = 'd', long = "debug", help = "debug with mock prover")]
@@ -119,8 +122,13 @@ impl ProveCommand {
         debug!("Get proving and verifying keys");
         let (vk, pk) = setup_circuit(&*circuit, params)?;
 
+        let kzg = match self.variant {
+            KZGVariant::GWC => KZG::GWC,
+            KZGVariant::SHPLONK => KZG::SHPLONK,
+        };
+
         debug!("Generating zk proof");
-        let proof = prove_circuit((*circuit).clone(), &instances.as_ref(), params, &pk)
+        let proof = prove_circuit((*circuit).clone(), &instances.as_ref(), params, &pk, kzg)
             .context("Proof generation failed")?;
 
         let output_dir = self
@@ -172,6 +180,8 @@ pub struct VerifyCommand {
     proof_path: PathBuf,
     #[arg(long = "vk-path", short = 'v', value_parser = value_parser!(PathBuf))]
     vk_path: PathBuf,
+    #[arg(long = "kzg", value_enum, default_value_t = KZGVariant::GWC)]
+    variant: KZGVariant,
     #[arg(long = "output-dir", short = 'o', value_parser = value_parser!(PathBuf))]
     output_dir: Option<PathBuf>,
     #[arg(short = 'd', long = "debug", help = "debug with mock prover")]
@@ -209,7 +219,11 @@ impl VerifyCommand {
             .with_context(|| format!("Failed to read pubs from {:?}", self.pubs_path))?;
         let instances = InstanceFields::<Fr, NUM_INSTANCE_COLUMNS>::from_bytes(&pubs);
 
-        verify_circuit(&instances.as_ref(), &params, &vk, &proof)
+        let kzg = match self.variant {
+            KZGVariant::GWC => KZG::GWC,
+            KZGVariant::SHPLONK => KZG::SHPLONK,
+        };
+        verify_circuit(&instances.as_ref(), &params, &vk, &proof, kzg)
             .expect("verify proof should be ok");
 
         debug!("Proof verified.");

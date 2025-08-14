@@ -23,7 +23,7 @@ use std::{
 use toml::Value;
 use vm_circuit::{
     best_k, circuit_v2::CircuitGuard, CircuitConfigV2, Footprints, InstanceFields, SubCircuit,
-    VmCircuit, NUM_INSTANCE_COLUMNS,
+    VmCircuit, KZG, NUM_INSTANCE_COLUMNS,
 };
 
 /// the consts correspond to the definition of vk_registry.move
@@ -249,20 +249,6 @@ pub enum KZGVariant {
     GWC,
     SHPLONK,
 }
-#[derive(Copy, Clone, Debug)]
-pub enum KZG {
-    GWC,
-    SHPLONK,
-}
-
-impl KZG {
-    pub fn to_u8(&self) -> u8 {
-        match self {
-            Self::SHPLONK => 0,
-            Self::GWC => 1,
-        }
-    }
-}
 
 #[derive(Parser)]
 struct BuildVerifyProofTxn {
@@ -280,7 +266,7 @@ struct BuildVerifyProofTxn {
     param_address: String,
     #[arg(long)]
     circuit_address: String,
-    #[arg(long = "kzg", value_enum)]
+    #[arg(long = "kzg", value_enum, default_value_t = KZGVariant::GWC)]
     variant: KZGVariant,
 }
 impl BuildVerifyProofTxn {
