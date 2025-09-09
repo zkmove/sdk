@@ -2,7 +2,7 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct ArgWithTypeJSON {
-    pub arg_type: String,
+    pub r#type: String,
     pub value: serde_json::Value,
 }
 

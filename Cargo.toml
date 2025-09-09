@@ -35,21 +35,20 @@ rayon = { version = "1.7" }
 clap = { version = "4", features = ["derive"] }
 rocksdb = { version = "0.21" }
 
-move-binary-format = { git = "https://github.com/zkmove/aptos-core", rev = "55df1cfee2f51aeeafeed54bb79ec09eea5b5e23" }
-move-core-types = { git = "https://github.com/zkmove/aptos-core", rev = "55df1cfee2f51aeeafeed54bb79ec09eea5b5e23" }
-move-vm-runtime = { git = "https://github.com/zkmove/aptos-core", rev = "55df1cfee2f51aeeafeed54bb79ec09eea5b5e23" }
-move-vm-types = { git = "https://github.com/zkmove/aptos-core", rev = "55df1cfee2f51aeeafeed54bb79ec09eea5b5e23" }
-move-bytecode-verifier = { git = "https://github.com/zkmove/aptos-core", rev = "55df1cfee2f51aeeafeed54bb79ec09eea5b5e23" }
-move-package = { git = "https://github.com/zkmove/aptos-core", rev = "55df1cfee2f51aeeafeed54bb79ec09eea5b5e23" }
+move-binary-format = { git = "https://github.com/zkmove/aptos-core", rev = "b4e0c28" }
+move-core-types = { git = "https://github.com/zkmove/aptos-core", rev = "b4e0c28" }
+move-vm-runtime = { git = "https://github.com/zkmove/aptos-core", rev = "b4e0c28" }
+move-vm-types = { git = "https://github.com/zkmove/aptos-core", rev = "b4e0c28" }
+move-bytecode-verifier = { git = "https://github.com/zkmove/aptos-core", rev = "b4e0c28" }
+move-package = { git = "https://github.com/zkmove/aptos-core", rev = "b4e0c28" }
 vm-circuit = { path = "../zkmove-vm/vm-circuit", package = "vm-circuit" }
-halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v0.3.0" }
+halo2_proofs = { git = "https://github.com/zkmove/halo2", branch = "zkmove", default-features = false, features = ["batch", "bits"] }
 aptos-sdk = { git = "https://github.com/zkmove/aptos-core", branch = "aptos-release-v1.6" }
 aptos-schemadb = { git = "https://github.com/zkmove/aptos-core", branch = "aptos-release-v1.6" }
 aptos-move-core-types = { git = "https://github.com/zkmove/aptos-core", branch = "aptos-release-v1.6", package = "move-core-types" }
+shape-generator = { git = "https://github.com/zkmove/halo2-verifier.move", package = "shape-generator" }
+#shape-generator = { path = "../../../halo2-verifier.move/crates/verifier-sdk/shape-generator" }
 
-
-#[patch."https://github.com/zkmove/zkmove-vm"]
-#vm-circuit = { path = "../zkmove-vm/vm-circuit", package = "vm-circuit" }
-
-[patch."https://github.com/privacy-scaling-explorations/halo2.git"]
-halo2_proofs = { path = "../halo2/halo2_proofs" }
+#[patch."https://github.com/zkmove/halo2.git"]
+#halo2_proofs = { path = "../halo2/halo2_proofs" }
+#halo2_backend = { path = "../halo2/halo2_backend" }

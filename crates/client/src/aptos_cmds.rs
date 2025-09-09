@@ -22,8 +22,8 @@ use std::{
 };
 use toml::Value;
 use vm_circuit::{
-    best_k, circuit_v2::CircuitGuard, CircuitConfigV2, Footprints, InstanceFields, SubCircuit,
-    VmCircuit, KZG, NUM_INSTANCE_COLUMNS,
+    best_k, circuit_v2::CircuitGuard, CircuitConfigV2, Footprints, PublicInputs, SubCircuit,
+    VmCircuit, KZG,
 };
 
 /// the consts correspond to the definition of vk_registry.move
@@ -200,12 +200,15 @@ impl BuildPublishCircuitAptosTxn {
         circuit: Rc<VmCircuit<Fr>>,
         params: &ParamsKZG<Bn256>,
     ) -> Result<()> {
-        let circuit_info = generate_circuit_info(params, &*circuit)?;
-        let data = circuit_info.serialize()?;
+        let circuit_info =
+            generate_circuit_info(params, &*circuit).expect("Failed to generate circuit info");
+        let data = circuit_info
+            .serialize()
+            .expect("Failed to serialize circuit info");
         let args: Vec<_> = data
             .into_iter()
             .map(|arg| ArgWithTypeJSON {
-                arg_type: "hex".to_string(),
+                r#type: "hex".to_string(),
                 value: json!(arg
                     .into_iter()
                     .map(|i| HexEncodedBytes(i).to_string())
@@ -279,7 +282,7 @@ impl BuildVerifyProofTxn {
             .with_context(|| format!("Failed to read proof from {:?}", self.proof_path))?;
         let pubs = std::fs::read(&self.pubs_path)
             .with_context(|| format!("Failed to read pubs from {:?}", self.pubs_path))?;
-        let instances = InstanceFields::<Fr, NUM_INSTANCE_COLUMNS>::from_bytes(&pubs);
+        let public_inputs = PublicInputs::<Fr>::from_bytes(&pubs);
         let json = EntryFunctionArgumentsJSON {
             function_id: format!(
                 "{}::{}::{}",
@@ -288,17 +291,17 @@ impl BuildVerifyProofTxn {
             type_args: vec![],
             args: vec![
                 ArgWithTypeJSON {
-                    arg_type: "address".to_string(),
+                    r#type: "address".to_string(),
                     value: json!(self.param_address),
                 },
                 ArgWithTypeJSON {
-                    arg_type: "address".to_string(),
+                    r#type: "address".to_string(),
                     value: json!(self.circuit_address),
                 },
                 ArgWithTypeJSON {
-                    arg_type: "hex".to_string(),
-                    value: json!(instances
-                        .0
+                    r#type: "hex".to_string(),
+                    value: json!(public_inputs
+                        .as_vec()
                         .into_iter()
                         .map(|is| is
                             .iter()
@@ -308,11 +311,11 @@ impl BuildVerifyProofTxn {
                         .collect::<Vec<_>>()),
                 },
                 ArgWithTypeJSON {
-                    arg_type: "hex".to_string(),
+                    r#type: "hex".to_string(),
                     value: json!(HexEncodedBytes(proof.clone()).to_string()),
                 },
                 ArgWithTypeJSON {
-                    arg_type: "u8".to_string(),
+                    r#type: "u8".to_string(),
                     value: json!(kzg.to_u8()),
                 },
             ],

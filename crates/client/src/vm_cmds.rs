@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use clap::{value_parser, Parser, Subcommand};
 use halo2_proofs::{
     halo2curves::bn256::{Bn256, Fr},
-    plonk::VerifyingKey,
+    plonk::keygen_vk,
     poly::{commitment::Params, kzg::commitment::ParamsKZG},
     SerdeFormat,
 };
@@ -26,8 +26,8 @@ use std::{
 use toml::Value;
 use vm_circuit::{
     best_k, circuit_v2::CircuitGuard, prove_circuit, setup_circuit, verify_circuit,
-    CircuitConfigV2, EntryInfo, Footprints, InstanceFields, ModuleIdMapping, SubCircuit, VmCircuit,
-    KZG, NUM_INSTANCE_COLUMNS,
+    CircuitConfigV2, EntryInfo, Footprints, ModuleIdMapping, PublicInputs, SubCircuit, VmCircuit,
+    KZG,
 };
 
 #[derive(Parser)]
@@ -107,20 +107,20 @@ impl ProveCommand {
         }
 
         let args = traces.args().expect("Args not found");
-        let instances = InstanceFields::<_, NUM_INSTANCE_COLUMNS>::new(&args, &self.pubs_indices);
-        self.generate_and_save_proof(circuit, &instances, &params, &self.package_path)?;
+        let public_inputs = PublicInputs::new(&args, &self.pubs_indices);
+        self.generate_and_save_proof(circuit, &public_inputs, &params, &self.package_path)?;
         Ok(())
     }
 
     fn generate_and_save_proof(
         &self,
         circuit: Rc<VmCircuit<Fr>>,
-        instances: &InstanceFields<Fr, NUM_INSTANCE_COLUMNS>,
+        public_inputs: &PublicInputs<Fr>,
         params: &ParamsKZG<Bn256>,
         rooted_path: &Path,
     ) -> Result<()> {
         debug!("Get proving and verifying keys");
-        let (vk, pk) = setup_circuit(&*circuit, params)?;
+        let (vk, pk) = setup_circuit(&*circuit, params).expect("setup should not fail");
 
         let kzg = match self.variant {
             KZGVariant::GWC => KZG::GWC,
@@ -128,8 +128,8 @@ impl ProveCommand {
         };
 
         debug!("Generating zk proof");
-        let proof = prove_circuit((*circuit).clone(), &instances.as_ref(), params, &pk, kzg)
-            .context("Proof generation failed")?;
+        let proof = prove_circuit((*circuit).clone(), public_inputs, params, &pk, kzg)
+            .expect("proof generation should not fail");
 
         let output_dir = self
             .output_dir
@@ -148,7 +148,7 @@ impl ProveCommand {
         save_to_file(
             &output_dir,
             &format!("{}.instance", file_stem),
-            &instances.to_bytes(),
+            public_inputs.to_bytes(),
         )?;
         save_to_file(
             &output_dir,
@@ -178,8 +178,6 @@ pub struct VerifyCommand {
     pubs_path: PathBuf,
     #[arg(long = "proof-path", short = 'p', value_parser = value_parser!(PathBuf))]
     proof_path: PathBuf,
-    #[arg(long = "vk-path", short = 'v', value_parser = value_parser!(PathBuf))]
-    vk_path: PathBuf,
     #[arg(long = "kzg", value_enum, default_value_t = KZGVariant::GWC)]
     variant: KZGVariant,
     #[arg(long = "output-dir", short = 'o', value_parser = value_parser!(PathBuf))]
@@ -208,22 +206,19 @@ impl VerifyCommand {
         ));
         let _circuit_guard = CircuitGuard::new(circuit.clone());
         // must be called after CircuitGuard, because vk depends on the circuit config
-        let vk = VerifyingKey::from_bytes::<VmCircuit<Fr>>(
-            &std::fs::read(&self.vk_path)
-                .with_context(|| format!("Failed to read vk from {:?}", self.vk_path))?,
-            SerdeFormat::Processed,
-        )?;
+        let vk =
+            keygen_vk::<_, _, VmCircuit<Fr>>(&params, &circuit).expect("keygen_vk should not fail");
         let proof = std::fs::read(&self.proof_path)
             .with_context(|| format!("Failed to read proof from {:?}", self.proof_path))?;
         let pubs = std::fs::read(&self.pubs_path)
             .with_context(|| format!("Failed to read pubs from {:?}", self.pubs_path))?;
-        let instances = InstanceFields::<Fr, NUM_INSTANCE_COLUMNS>::from_bytes(&pubs);
+        let public_inputs = PublicInputs::from_bytes(&pubs);
 
         let kzg = match self.variant {
             KZGVariant::GWC => KZG::GWC,
             KZGVariant::SHPLONK => KZG::SHPLONK,
         };
-        verify_circuit(&instances.as_ref(), &params, &vk, &proof, kzg)
+        verify_circuit(&public_inputs, &params, &vk, &proof, kzg)
             .expect("verify proof should be ok");
 
         debug!("Proof verified.");

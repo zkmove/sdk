@@ -20,7 +20,7 @@ move sandbox run --skip-fetch-latest-git-deps --witness storage/0x00000000000000
 # Generate proof in the client-side. Run under crates/client/, don't forget to replace the witness filename with your own.
 cargo run --release --  --param-path params/kzg_bn254_12.srs vm prove --package-path example -w example/witnesses/test_fibonacci-1747793629098.json
 # As a debug tool, user can verify the proof in the client-side.
-cargo run --release --  --param-path params/kzg_bn254_12.srs vm verify -k 11 --package-path example --pubs-path example/proofs/test_fibonacci-1747793629098.instance --proof-path example/proofs/test_fibonacci-1747793629098.proof --vk-path example/proofs/test_fibonacci-1747793629098.vk
+cargo run --release --  --param-path params/kzg_bn254_12.srs vm verify -k 11 --package-path example --pubs-path example/proofs/test_fibonacci-1747793629098.instance --proof-path example/proofs/test_fibonacci-1747793629098.proof
 ```
 
 To publish the circuit to Aptos, you can use the following command.
@@ -30,5 +30,5 @@ cargo run --release --  --param-path params/kzg_bn254_12.srs aptos --zkmove-addr
 Verify the proof on Aptos:
 ```shell
 # todo: remove unused param-path, package_dir
-cargo run --release --  --param-path params/kzg_bn254_12.srs aptos --zkmove-address a9f85ec000d6b7e78aa006f0fe0fcb3f8b82b71262283b84f2434441318064e1 -p ./example build-verify-proof-aptos-txn --pubs-path example/proofs/test_fibonacci-1747793629098.instance --proof-path example/proofs/test_fibonacci-1747793629098.proof --param-address a9f85ec000d6b7e78aa006f0fe0fcb3f8b82b71262283b84f2434441318064e1 --circuit-address a9f85ec000d6b7e78aa006f0fe0fcb3f8b82b71262283b84f2434441318064e1 --kzg shplonk
+cargo run --release --  --param-path params/kzg_bn254_12.srs aptos --zkmove-address a9f85ec000d6b7e78aa006f0fe0fcb3f8b82b71262283b84f2434441318064e1 -p ./example build-verify-proof-aptos-txn --pubs-path example/proofs/test_fibonacci-1754384516414.instance --proof-path example/proofs/test_fibonacci-1754384516414.proof --param-address a9f85ec000d6b7e78aa006f0fe0fcb3f8b82b71262283b84f2434441318064e1 --circuit-address a9f85ec000d6b7e78aa006f0fe0fcb3f8b82b71262283b84f2434441318064e1 --kzg shplonk
 ```
